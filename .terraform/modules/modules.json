@@ -1,0 +1,1 @@
+{"Modules":[{"Key":"","Source":"","Dir":"."},{"Key":"ansible_nodes","Source":"./modules/Ansible","Dir":"modules/Ansible"},{"Key":"database","Source":"./modules/database","Dir":"modules/database"},{"Key":"network","Source":"./modules/network","Dir":"modules/network"},{"Key":"wordpress","Source":"./modules/wordpress","Dir":"modules/wordpress"}]}

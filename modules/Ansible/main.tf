@@ -36,10 +36,3 @@ resource "aws_instance" "ansible_nodes" {
   }
 }
 
-output "public_ips" {
-  value = aws_instance.ansible_nodes[*].public_ip
-}
-
-output "private_ips" {
-  value = aws_instance.ansible_nodes[*].private_ip
-}

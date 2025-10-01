@@ -1,9 +1,9 @@
-output "ansible_nodes_public_ips" {
-  description = "Public IPs of the Ansible nodes"
-  value       = aws_instance.ansible_nodes[*].public_ip #outputs public ip
+output "ec2_instance_ids" {
+  description = "IDs of filtered EC2 instances"
+  value       = data.aws_instances.filtered.ids
 }
 
-output "ansible_nodes_private_ips" {
-  description = "Private IPs of the Ansible nodes"
-  value       = aws_instance.ansible_nodes[*].private_ip #Outputs private ip
+output "ec2_public_ips" {
+  description = "Public IPs of filtered EC2 instances"
+  value       = [for i in data.aws_instance.instances : i.public_ip]
 }

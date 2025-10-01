@@ -51,7 +51,7 @@ module "backend_sg" {
 }
 
 # -----------------------
-# EC2
+# Server EC2
 # -----------------------
 
 module "ec2" {
@@ -60,17 +60,13 @@ module "ec2" {
   tags     = var.tags
 
   instances = {
-    frontend = {
-      ami           = var.ec2_amis["frontend"]
-      instance_type = "t3.small"
-      subnet_id     = values(module.network.public_subnets)[0]
-      sg_ids        = [module.frontend_sg.sg_id]
-    },
-    backend = {
-      ami           = var.ec2_amis["backend"]
+
+    Youssefbackend = {
+      ami_id        = var.ec2_amis["db-image-node"]
       instance_type = "t3.micro"
       subnet_id     = values(module.network.private_subnets)[0]
       sg_ids        = [module.backend_sg.sg_id]
+      tags          = merge(var.tags, { "Name" = "YoussefBackEnd" })
     }
   }
 }
@@ -79,49 +75,96 @@ module "ec2" {
 
 
 # -----------------------
-# OPTIONAL: Auto Scaling Group (commented)
+# Auto Scaling Group
 # -----------------------
-# Use modules/asg if you want autoscaling instead of single EC2s
-#module "wordpress_asg" {
-#  source         = "./modules/asg"
-#  name           = var.asg_name
-#  ami_id         = var.asg_ami
-#  instance_type  = var.asg_instance_type
-#  subnet_ids     = [module.network.public_subnet_id]
-#  sg_ids         = [module.instance_sg.sg_id]
-#  key_name       = var.key_name
-#  desired_capacity = var.asg_desired_capacity
-#  min_size       = var.asg_min_size
-#  max_size       = var.asg_max_size
-#}
+
+
+module "frontend_asg" {
+  source         = "./modules/asg"
+  name           = "YoussefFrontend"
+  ami_id         = var.ec2_amis["wordpress-node"]
+  instance_type  = "t3.small"
+  subnet_ids     = values(module.network.public_subnets)   # all public subnets
+  sg_ids         = [module.frontend_sg.sg_id]
+  key_name       = var.key_name
+  desired_capacity = 1
+  min_size         = 1
+  max_size         = 2
+}
+
+
+# -----------------------
+# Create two machines to run the ansible playbook
+# -----------------------
+
+module "ansible_nodes" {
+  source   = "./modules/ec2"
+  key_name = var.key_name
+  tags     = var.tags
+
+  instances = {
+    Youssef-ansible-1 = {
+      ami_id        = data.aws_ami.ubuntu.id   # Default Ubuntu AMI
+      instance_type = "t3.micro"
+      subnet_id     = values(module.network.public_subnets)[0]
+      sg_ids        = [module.frontend_sg.sg_id]  # Or a dedicated SG
+      tags          = merge(var.tags, { "Role" = "ansible"
+                                        "Name" = "Joe-Ansible-machine-1" })
+    }
+
+    Youssef-ansible-2 = {
+      ami_id        = data.aws_ami.ubuntu.id
+      instance_type = "t3.micro"
+      subnet_id     = values(module.network.public_subnets)[0]
+      sg_ids        = [module.frontend_sg.sg_id]
+      tags          = merge(var.tags, { "Role" = "ansible"
+                                        "Name" = "Joe-Ansible-machine-2" })
+    }
+  }
+}
+
+# Look up the latest Ubuntu AMI
+data "aws_ami" "ubuntu" {
+  most_recent = true
+  owners      = ["099720109477"] # Canonical
+
+  filter {
+    name   = "name"
+    values = ["ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*"]
+  }
+
+  filter {
+    name   = "virtualization-type"
+    values = ["hvm"]
+  }
+}
 
 
 
-#Subnets using in for each. Nothing hard coded 2 or 4
+
+
+
+
+# -----------------------
+# The ansible playbook
+# -----------------------
+module "wordpress_ansible" {
+  source = "./modules/ansible"
+
+  tag_key             = "Role"                # the tag key to filter EC2s
+  tag_value           = "ansible"           # the tag value to filter EC2s
+  ansible_playbook    = "playbook.yml"       # relative path to playbook
+  ssh_user            = "ubuntu"              # SSH username
+  ssh_private_key_path = "/home/ubuntu/.ssh/youssefkeypair.pem"      # path to private key. It's in the WSL
+}
+
+
+
+
+
+#Subnets using in for each. Nothing hard coded 2 or 4 Done
 #Use Images with a resource in terraform named: data
-#Check backend if it works with the lock
-#auto scale, VMS and launch template as modules
-
-
-# -----------------------
-# ANSIBLE NODES #Commented as it isn't done yet.
-# -----------------------
-#module "ansible_nodes" {
-#  source             = "./modules/Ansible"
-#  subnet_id          = module.network.public_subnet_id   
-#  security_group_ids = [module.network.default_sg_id]    
-#  key_name           = "SKYoussefKey.pem"
-#  ami_id             = data.aws_ami.ubuntu.id
-#  instance_type      = "t3.micro"
-#}
-
-
-# -----------------------
-# OUTPUTS
-# -----------------------
-
-
-
-
+#Check backend if it works with the lock Done
+#auto scale, VMS and launch template as modules 
 
 

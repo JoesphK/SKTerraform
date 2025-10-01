@@ -32,7 +32,7 @@ variable "key_name" {
 variable "desired_capacity" {
   description = "Desired number of instances"
   type        = number
-  default     = 2
+  default     = 1
 }
 
 variable "min_size" {
@@ -44,5 +44,5 @@ variable "min_size" {
 variable "max_size" {
   description = "Maximum number of instances"
   type        = number
-  default     = 3
+  default     = 2
 }

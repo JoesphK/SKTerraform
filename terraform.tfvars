@@ -2,15 +2,16 @@ region = "us-east-1"
 
 # network
 vpc_cidr            = "10.1.0.0/16"
-public_subnet_cidrs  = ["10.0.1.0/24", "10.0.2.0/24"]
-private_subnet_cidrs = ["10.0.3.0/24", "10.0.4.0/24"]
-availability_zones   = ["us-east-1a", "us-east-1b"]
+public_subnet_cidrs  = ["10.1.1.0/24"]
+private_subnet_cidrs = ["10.1.2.0/24"]
+availability_zones   = ["us-east-1a"]
+
 
 
 # Key
 key_name = "SKYoussefKey"
 
-# EC2 instances: create one instance per entry (name => ami)
+# EC2 instances: create one instance per entry
 ec2_amis = {
   "wordpress-node" = "ami-08d773dde7e3cf7a4"
   "db-image-node"  = "ami-03d64a68bd3196240"

@@ -1,20 +1,20 @@
 variable "instances" {
   description = "Map of instances to create"
   type = map(object({
-    ami            = string
-    instance_type  = string
-    subnet_id      = string
-    sg_ids         = list(string)
+    ami_id        = string      # Custom AMI ID
+    instance_type = string
+    subnet_id     = string
+    sg_ids        = list(string)
   }))
 }
 
 variable "key_name" {
+  description = "SSH key name"
   type        = string
-  description = "Key pair name"
 }
 
 variable "tags" {
-  type        = map(string)
   description = "Tags to apply"
+  type        = map(string)
   default     = {}
 }

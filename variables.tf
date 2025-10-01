@@ -15,19 +15,19 @@ variable "vpc_cidr" {
 variable "public_subnet_cidrs" {
   type        = list(string)
   description = "List of public subnet CIDRs"
-  default     = ["10.1.1.0/24", "10.1.3.0/24"]
+  default     = ["10.1.10.0/24", "10.1.11.0/24"]
 }
 
 variable "private_subnet_cidrs" {
   type        = list(string)
   description = "List of private subnet CIDRs"
-  default     = ["10.1.2.0/24", "10.1.4.0/24"]
+  default     = ["10.1.12.0/24", "10.1.13.0/24"]
 }
 
 variable "availability_zones" {
   type        = list(string)
   description = "List of availability zones for subnets"
-  default     = ["us-east-1a", "us-east-1b"]
+  default     = ["us-east-1a"]
 }
 
 # Key pair
@@ -105,7 +105,7 @@ variable "tags" {
 # Optional ASG variables (kept for later)
 variable "asg_name" {
   type    = string
-  default = "wordpress-asg"
+  default = "wordpress-youssef"
 }
 
 variable "asg_ami" {
@@ -120,7 +120,7 @@ variable "asg_instance_type" {
 
 variable "asg_desired_capacity" {
   type    = number
-  default = 2
+  default = 1
 }
 
 variable "asg_min_size" {

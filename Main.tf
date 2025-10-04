@@ -59,14 +59,14 @@ module "ec2" {
   key_name = var.key_name
   tags     = var.tags
 
-  instances = {
+  instances = { #Create instances
 
-    Youssefbackend = {
-      ami_id        = var.ec2_amis["db-image-node"]
-      instance_type = "t3.micro"
-      subnet_id     = values(module.network.private_subnets)[0]
-      sg_ids        = [module.backend_sg.sg_id]
-      tags          = merge(var.tags, { "Name" = "YoussefBackEnd" })
+    Youssefbackend = { #Instance
+      ami_id        = var.ec2_amis["db-image-node"] #AMI, fetch it from var or from tfvars or whatever.
+      instance_type = "t3.micro" #Size
+      subnet_id     = values(module.network.private_subnets)[0] #subnet, set to 0 for less headache for me
+      sg_ids        = [module.backend_sg.sg_id] #Security group
+      tags          = merge(var.tags, { "Name" = "YoussefBackEnd" }) #Added a name
     }
   }
 }
@@ -126,24 +126,18 @@ module "ansible_nodes" {
 # Look up the latest Ubuntu AMI
 data "aws_ami" "ubuntu" {
   most_recent = true
-  owners      = ["099720109477"] # Canonical
+  owners      = ["099720109477"] # Canonical owner
 
-  filter {
+  filter { #Find by name
     name   = "name"
     values = ["ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*"]
   }
 
-  filter {
+  filter { #Find by virtualization type
     name   = "virtualization-type"
     values = ["hvm"]
   }
 }
-
-
-
-
-
-
 
 # -----------------------
 # The ansible playbook
@@ -156,6 +150,7 @@ module "wordpress_ansible" {
   ansible_playbook    = "playbook.yml"       # relative path to playbook
   ssh_user            = "ubuntu"              # SSH username
   ssh_private_key_path = "/home/ubuntu/.ssh/youssefkeypair.pem"      # path to private key. It's in the WSL
+
 }
 
 

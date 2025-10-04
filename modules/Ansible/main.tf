@@ -19,17 +19,17 @@ data "aws_instance" "instances" {
 resource "null_resource" "ansible_run" {
   provisioner "local-exec" {
     interpreter = ["wsl", "bash", "-c"]
-    command = <<EOT
-ansible-playbook \
-  -i '${join(",", [for i in data.aws_instance.instances : i.public_ip])},' \
-  /mnt/c/Users/User/Desktop/Studies/SilverKey/TerraForm/SKTerraform/modules/Ansible/playbook.yml \
-  --private-key /root/.ssh/youssefkeypair.pem \
-  -u ubuntu \
-  --ssh-common-args='-o StrictHostKeyChecking=no'
-EOT
+    command = <<-EOT
+      ansible-playbook -i '${join(",", [for i in data.aws_instance.instances : i.public_ip])},' \
+      /mnt/c/Users/User/Desktop/Studies/SilverKey/TerraForm/SKTerraform/modules/Ansible/playbook.yml \
+      --private-key /root/.ssh/youssefkeypair.pem \
+      -u ubuntu \
+      --ssh-common-args='-o StrictHostKeyChecking=no'
+    EOT
   }
 
   depends_on = [data.aws_instance.instances]
 }
+
 
 

@@ -37,7 +37,7 @@
     - name: Ensure MySQL admin user exists
       mysql_user:
         name: admin
-        password: "AdminPass123!"
+        password: "password"
         priv: ".:ALL,GRANT"
         host: "%"
         state: present
@@ -48,17 +48,17 @@
         name: wordpress
         state: present
         login_user: admin
-        login_password: "AdminPass123!"
+        login_password: "password"
 
     - name: Create WordPress User
       mysql_user:
-        name: wpuser
-        password: "wppassword"
+        name: wp-user
+        password: "password"
         priv: 'wordpress.*:ALL'
         host: "%"
         state: present
         login_user: admin
-        login_password: "AdminPass123!"
+        login_password: "password"
 
     - name: Restart MySQL
       service:

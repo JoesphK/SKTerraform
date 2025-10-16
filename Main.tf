@@ -8,7 +8,9 @@ terraform {
 }
 
 provider "aws" {
-  region = var.region
+  region                  = var.region
+  shared_credentials_files = ["~/.aws/credentials"]
+  profile                 = "default" 
 }
 
 # -----------------------
@@ -25,136 +27,105 @@ module "network" {
 
 
 # -----------------------
-# SECURITY GROUP (Frontend)
+# SECURITY GROUP (EKS Nodes)
 # -----------------------
-module "frontend_sg" {
+module "eks_nodes_sg" {
   source        = "./modules/securityGroups"
-  name          = "frontend-sg"
-  description   = "Frontend SG (HTTP + SSH)"
+  name          = "eks-nodes-sg"
+  description   = "Security group for EKS worker nodes"
   vpc_id        = module.network.vpc_id
-  ingress_rules = var.frontend_ingress_rules
+  ingress_rules = var.eks_nodes_ingress_rules
   egress_rules  = var.instance_egress_rules
-  tags          = var.tags
-}
-
-# -----------------------
-# SECURITY GROUP (Backend)
-# -----------------------
-module "backend_sg" {
-  source        = "./modules/securityGroups"
-  name          = "backend-sg"
-  description   = "Backend SG (SSH + MySQL)"
-  vpc_id        = module.network.vpc_id
-  ingress_rules = var.backend_ingress_rules
-  egress_rules  = var.instance_egress_rules
-  tags          = var.tags
-}
-
-# -----------------------
-# Server EC2
-# -----------------------
-
-module "ec2" {
-  source   = "./modules/ec2"
-  key_name = var.key_name
-  tags     = var.tags
-
-  instances = { #Create instances
-
-    Youssefbackend = { #Instance
-      ami_id        = var.ec2_amis["db-image-node"] #AMI, fetch it from var or from tfvars or whatever.
-      instance_type = "t3.micro" #Size
-      subnet_id     = values(module.network.private_subnets)[0] #subnet, set to 0 for less headache for me
-      sg_ids        = [module.backend_sg.sg_id] #Security group
-      tags          = merge(var.tags, { "Name" = "YoussefBackEnd" }) #Added a name
-    }
-  }
+  tags          = merge(var.tags, { "Component" = "EKS-Nodes" })
 }
 
 
 
 
-# -----------------------
-# Auto Scaling Group
-# -----------------------
+#------------------------
+#IAM
+#------------------------
+# EKS Cluster IAM role
+module "eks_cluster_role" {
+  source               = "./modules/iam"
+  role_name            = var.eks_cluster_iam.role_name
+  assume_services      = var.eks_cluster_iam.assume_services
+  managed_policy_arns  = var.eks_cluster_iam.managed_policy_arns
+  tags                 = lookup(var.eks_cluster_iam, "tags", {})
+  create_instance_profile = false
+}
 
-
-module "frontend_asg" {
-  source         = "./modules/asg"
-  name           = "YoussefFrontend"
-  ami_id         = var.ec2_amis["wordpress-node"]
-  instance_type  = "t3.small"
-  subnet_ids     = values(module.network.public_subnets)   # all public subnets
-  sg_ids         = [module.frontend_sg.sg_id]
-  key_name       = var.key_name
-  desired_capacity = 1
-  min_size         = 1
-  max_size         = 2
+# EKS Node IAM role
+module "eks_node_role" {
+  source                  = "./modules/iam"
+  role_name               = var.eks_node_iam.role_name
+  assume_services         = var.eks_node_iam.assume_services
+  managed_policy_arns     = var.eks_node_iam.managed_policy_arns
+  tags                    = lookup(var.eks_node_iam, "tags", {})
+  create_instance_profile = true
 }
 
 
+/*
 # -----------------------
-# Create two machines to run the ansible playbook
+# EKS Cluster
 # -----------------------
+module "eks" {
+  source = "./modules/eks"
 
-module "ansible_nodes" {
-  source   = "./modules/ec2"
-  key_name = var.key_name
-  tags     = var.tags
+  cluster_name    = "sk-eks-cluster"
+  cluster_version = "1.30"
 
-  instances = {
-    Youssef-ansible-1 = {
-      ami_id        = data.aws_ami.ubuntu.id   # Default Ubuntu AMI
-      instance_type = "t3.micro"
-      subnet_id     = values(module.network.public_subnets)[0]
-      sg_ids        = [module.frontend_sg.sg_id]  # Or a dedicated SG
-      tags          = merge(var.tags, { "Role" = "ansible"
-                                        "Name" = "Joe-Ansible-machine-1" })
-    }
+  vpc_id     = module.network.vpc_id
+  subnet_ids = concat(values(module.network.public_subnets), values(module.network.private_subnets))
 
-    Youssef-ansible-2 = {
-      ami_id        = data.aws_ami.ubuntu.id
-      instance_type = "t3.micro"
-      subnet_id     = values(module.network.public_subnets)[0]
-      sg_ids        = [module.frontend_sg.sg_id]
-      tags          = merge(var.tags, { "Role" = "ansible"
-                                        "Name" = "Joe-Ansible-machine-2" })
-    }
-  }
-}
+  node_group_name = "sk-node-group"
+  instance_types  = ["t3.small"]
+  desired_size    = 1
+  min_size        = 1
+  max_size        = 2
 
-# Look up the latest Ubuntu AMI
-data "aws_ami" "ubuntu" {
-  most_recent = true
-  owners      = ["099720109477"] # Canonical owner
+  node_role_arn = module.eks_node_role.role_arn
 
-  filter { #Find by name
-    name   = "name"
-    values = ["ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*"]
-  }
-
-  filter { #Find by virtualization type
-    name   = "virtualization-type"
-    values = ["hvm"]
-  }
+  tags = var.tags
 }
 
 # -----------------------
-# The ansible playbook
+# Ensure nodes' IAM role is mapped into Kubernetes node groups
+# This allows kubelets to authenticate as nodes (system:bootstrappers, system:nodes)
+resource "aws_eks_access_entry" "node_role_mapping" {
+  depends_on    = [module.eks]
+  cluster_name  = module.eks.cluster_name
+  principal_arn = module.eks_node_role.role_arn
+
+  type              = "STANDARD"
+  kubernetes_groups = ["system:bootstrappers", "system:nodes"]
+}
+
 # -----------------------
-module "wordpress_ansible" {
-  source = "./modules/ansible"
+# Attach required managed policies to the node IAM role (idempotent)
+# These attachments are safe to run even if some have been attached already.
+resource "aws_iam_role_policy_attachment" "node_worker_policy" { # EKS perms to work in cluster
+  depends_on = [module.eks_node_role]
+  role       = module.eks_node_role.role_name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
+}
 
-  tag_key             = "Role"                # the tag key to filter EC2s
-  tag_value           = "ansible"           # the tag value to filter EC2s
-  ansible_playbook    = "playbook.yml"       # relative path to playbook
-  ssh_user            = "ubuntu"              # SSH username
-  ssh_private_key_path = "/home/ubuntu/.ssh/youssefkeypair.pem"      # path to private key. It's in the WSL
+resource "aws_iam_role_policy_attachment" "node_ecr_readonly" { #Allow acccess to ECR, the images are stored in ECR
+  depends_on = [module.eks_node_role]
+  role       = module.eks_node_role.role_name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
+}
 
+resource "aws_iam_role_policy_attachment" "node_cni_policy" { #AWS can communicate and setup networking for the k8s
+  depends_on = [module.eks_node_role]
+  role       = module.eks_node_role.role_name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
 }
 
 
 
+*/
 
 
 #Subnets using in for each. Nothing hard coded 2 or 4 Done

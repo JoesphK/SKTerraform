@@ -27,7 +27,7 @@ variable "private_subnet_cidrs" {
 variable "availability_zones" {
   type        = list(string)
   description = "List of availability zones for subnets"
-  default     = ["us-east-1a"]
+  default     = ["us-east-1a", "us-east-1b"]
 }
 
 # Key pair
@@ -63,38 +63,29 @@ variable "instance_sg_description" {
   default     = "Instance SG (SSH/HTTP/etc.)"
 }
 
-variable "instance_ingress_rules" {
-  description = "List of ingress rules to pass to SG module"
-  type = list(object({
-    description     = optional(string)
-    from_port       = number
-    to_port         = number
-    protocol        = string
-    cidr_blocks     = optional(list(string))
-    security_groups = optional(list(string))
-  }))
-  default = []
-}
 
-variable "instance_egress_rules" {
-  description = "List of egress rules to pass to SG module"
+variable "eks_nodes_ingress_rules" {
+  description = "Ingress rules for EKS node security group"
   type = list(object({
-    description = optional(string)
     from_port   = number
     to_port     = number
     protocol    = string
-    cidr_blocks = optional(list(string))
+    cidr_blocks = list(string)
+    description = string
   }))
-  default = [
-    {
-      description = "Allow all outbound"
-      from_port   = 0
-      to_port     = 0
-      protocol    = "-1"
-      cidr_blocks = ["0.0.0.0/0"]
-    }
-  ]
 }
+
+variable "instance_egress_rules" {
+  description = "Egress rules for security groups"
+  type = list(object({
+    from_port   = number
+    to_port     = number
+    protocol    = string
+    cidr_blocks = list(string)
+    description = string
+  }))
+}
+
 
 # Generic tags
 variable "tags" {
@@ -133,26 +124,96 @@ variable "asg_max_size" {
   default = 3
 }
 
-variable "frontend_ingress_rules" {
-  description = "Ingress rules for frontend SG"
-  type = list(object({
-    description     = optional(string)
-    from_port       = number
-    to_port         = number
-    protocol        = string
-    cidr_blocks     = optional(list(string))
-    security_groups = optional(list(string))
-  }))
+
+
+variable "eks_cluster_iam" {
+  description = "IAM configuration for the EKS cluster role"
+  type = object({
+    role_name           = string
+    assume_services     = list(string)
+    managed_policy_arns = list(string)
+    tags                = optional(map(string), {})
+  })
 }
 
-variable "backend_ingress_rules" {
-  description = "Ingress rules for backend SG"
+variable "eks_node_iam" {
+  description = "IAM configuration for the EKS node role"
+  type = object({
+    role_name           = string
+    assume_services     = list(string)
+    managed_policy_arns = list(string)
+    tags                = optional(map(string), {})
+  })
+}
+
+variable "cluster_name" {
+  type    = string
+  default = "sk-eks-cluster"
+}
+
+variable "cluster_version" {
+  type    = string
+  default = "1.30"
+}
+
+variable "node_group_name" {
+  type    = string
+  default = "sk-node-group"
+}
+
+variable "instance_types" {
+  type    = list(string)
+  default = ["t3.small"]
+}
+
+variable "desired_size" {
+  type    = number
+  default = 1
+}
+
+variable "min_size" {
+  type    = number
+  default = 1
+}
+
+variable "max_size" {
+  type    = number
+  default = 2
+}
+variable "node_role_arn" {
+  description = "Optional: ARN of the IAM role for EKS nodes. If empty, uses module.eks_node_role.role_arn."
+  type        = string
+  default     = ""
+}
+
+variable "admin_iam_user" {
+  description = "IAM user ARN to grant admin access to the cluster"
+  type        = string
+}
+
+# Addons & cluster settings
+variable "cluster_enabled_log_types" {
+  type    = list(string)
+  default = ["api", "audit", "authenticator", "controllerManager", "scheduler"]
+}
+
+# Access entries to map IAM principals -> kubernetes groups & policy association
+# Example structure in terraform.tfvars:
+# eks_access_entries = [
+#   { principal_arn = "arn:aws:iam::123:role/my-admin" , groups = ["system:masters"], policy = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy" }
+# ]
+variable "eks_access_entries" {
   type = list(object({
-    description     = optional(string)
-    from_port       = number
-    to_port         = number
-    protocol        = string
-    cidr_blocks     = optional(list(string))
-    security_groups = optional(list(string))
+    principal_arn       = string
+    kubernetes_groups   = optional(list(string), [])
+    kubernetes_username = optional(string, null)
+    access_policy_arn   = optional(string, null)
   }))
+  default = []
+}
+
+# Addon config for CoreDNS if you want (optional)
+variable "coredns_config" {
+  type    = map(any)
+  default = {}
 }

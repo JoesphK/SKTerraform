@@ -1,33 +1,74 @@
-# Terraform infrastructure deployer
-## Overview
-This project aims to deploy cloud infrastructure using code using modular blocks.
+# AWS infrastructure by Terraform
 
-## Features
+---  
+- [Overview](#overview)  
+- [Features](#features)  
+- [Architecture design](#Architecture-design)    
 
-- **Modular architecture** — infrastructure divided into reusable modules  
-- Clear separation of **variables**, **outputs**, and **main block**  
-- Easy to add new modules or resources  
-- Backend state management  
-- Clean, opinionated structure for maintainability  
-- Currently supports:
-    - Creating VPC
-    - Private subnets + 1 NAT gateway
-    - Public subnets + 1 IGW
-    - EC2
-    - Security groups
-    - Auto scaling groups
-    - Launch templates
-##Installation
-- Download the project
-- Open it in visual studio
-- Adjust the components you need to add/ remove in the root main.tf
-- Initilize terraform using: terraform init
-- Add your credentials to AWS using aws configure (You will need to install aws library in your IDE of choice/ powershell)
-- Specify the bucket name that will be used to apply the lock under backend.tf
-- Run terraform plan to check your infrastructure
-- If successful run terraform apply -auto-approve
-## Future work
-- Add the creation of EKS clusters
-- Add the creation of load balancers
-- Add the creation of dynamoDB
-- Create a UI for ease of access
+
+---
+
+##  Overview
+
+This repository is the base work of deploying AWS resources using Terraform.  
+It is highly customizable and modular, allowing you to convert your infrastructure to code, allowing you to deploy it anywhere.  
+
+---  
+## Features  
+
+- **VPC** — Private and public subnets, Internet Gateway, and NAT Gateway  
+- **IAM** — Roles, policies, and access control  
+- **Security Groups** — Controlled network access between resources  
+- **EC2** — Compute instances  
+- **Auto Scaling Group (ASG)** — Dynamic instance scaling  
+- **EKS** — Managed Kubernetes cluster  
+- **Ansible** — Configuration management and application deployment
+
+All modules are orchestrated by the **root `main.tf`**, which pulls in variables from `variables.tf` and `terraform.tfvars` and deploys the infrastructure to **AWS**.
+All the blocks have their own varibles.tf and outputs.tf, which can be edited at will.
+
+---
+
+##  Architecture design
+
+RESUME HERE
+
+```mermaid
+flowchart LR
+
+    %% Input files
+    TFVARS["terraform.tfvars<br>Actual variable values"]
+    VARS["variables.tf<br>Variable definitions"]
+
+    %% Root configuration
+    ROOT["main.tf<br>Root module orchestrator"]
+
+    %% Modules
+    VPC["module.vpc<br>VPC, Subnets, NAT, IGW"]
+    IAM["module.iam<br>Roles and Policies"]
+    SG["module.security_groups<br>Network Security Groups"]
+    EC2["module.ec2<br>Compute Instances"]
+    ASG["module.autoscaling<br>Auto Scaling Groups"]
+    EKS["module.eks<br>Kubernetes Cluster"]
+    ANS["module.ansible<br>Configuration Management"]
+
+    %% End target
+    AWS[(AWS Cloud<br>Deployed Infrastructure)]
+
+    %% Relationships
+    TFVARS --> ROOT
+    VARS --> ROOT
+
+    ROOT --> VPC
+    ROOT --> IAM
+    ROOT --> SG
+    ROOT --> EC2
+    ROOT --> ASG
+    ROOT --> EKS
+    ROOT --> ANS
+
+    %% Output to AWS
+    ROOT --> AWS
+```
+---  
+## 
